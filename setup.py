@@ -18,7 +18,7 @@ setup(name='fem',
       #install_requires=required,
       entry_points={
         'console_scripts': [
-            'fem_shell = fem.shell:main',
+            'fem_shell = fem.utils.shell:main',
          ]
       },
       zip_safe=False,
