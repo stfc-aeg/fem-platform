@@ -252,7 +252,13 @@ class FemClient(object):
         self.send(cmd, bus, width, state, addr, thePayload)
         response = self.recv()
         return response
-    
+
+    def directWrite(self, theAddr, thePayload):
+                
+        bus   = FemTransaction.BUS_RAW_REG
+        width = FemTransaction.WIDTH_BYTE
+        self.write(bus, width, theAddr, thePayload)
+
     def close(self):
         self.femSocket.close()
         self.femSocket = None
