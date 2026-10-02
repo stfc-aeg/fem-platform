@@ -3,8 +3,6 @@ Created on 22 Mar 2011
 
 @author: tcn
 '''
-from __future__ import print_function
-
 import cmd
 import os
 import string
@@ -16,52 +14,52 @@ try:
     import readline
 except ImportError:
     readline = None
-    
+
 from fem.client import FemClient, FemClientError
 from fem.api.transaction import FemTransaction
 from fem.api.config import FemConfig
-            
+
 class FemShell(cmd.Cmd,object):
-    
+
     connectedFem = None;
     timerEnabled = False;
-    
+
     busEncoding = { 'EEPROM' : FemTransaction.BUS_EEPROM ,
                     'I2C'    : FemTransaction.BUS_I2C  ,
                     'RAW'    : FemTransaction.BUS_RAW_REG ,
                     'REG'    : FemTransaction.BUS_RAW_REG,
                     'RDMA'   : FemTransaction.BUS_RDMA,
                     'DIRECT' : FemTransaction.BUS_DIRECT
-                  } 
-    
-    widthEncoding = { 'BYTE' : FemTransaction.WIDTH_BYTE, 
-                      'WORD' : FemTransaction.WIDTH_WORD, 
+                  }
+
+    widthEncoding = { 'BYTE' : FemTransaction.WIDTH_BYTE,
+                      'WORD' : FemTransaction.WIDTH_WORD,
                       'LONG' : FemTransaction.WIDTH_LONG
                     }
-    
+
     acqModeEncoding = { 'NORMAL' : FemTransaction.ACQ_MODE_NORMAL,
                         'BURST'  : FemTransaction.ACQ_MODE_BURST,
                         'RX'     : FemTransaction.ACQ_MODE_RX_ONLY,
                         'TX'     : FemTransaction.ACQ_MODE_TX_ONLY,
-                        'UPLOAD' : FemTransaction.ACQ_MODE_UPLOAD                           
+                        'UPLOAD' : FemTransaction.ACQ_MODE_UPLOAD
                       }
-    
+
     acqStatusEncoding = { 0 : 'IDLE',
                           1 : 'CONFIG BUSY',
                           2 : 'NORMAL ACQ',
                           3 : 'UPLOAD ACQ',
                           4 : 'STOPPING ACQ'
                         }
-    
+
     def __init__(self, completekey='tab', stdin=None, stdout=None, cmdqueue=None):
-      
+
         self.histfile = os.path.expanduser('~/.femshell_history')
         self.histfile_size = 1000
 
         cmd.Cmd.__init__(self, completekey, stdin, stdout)
-        
+
         self.pystate = {}
-        
+
         self.loopRecurseDepth = 0
 
         if stdin or cmdqueue:
@@ -73,17 +71,17 @@ class FemShell(cmd.Cmd,object):
             self.prompt = "[FemShell] $ "
             self.preLoopMsg = "\nWelcome to the FEM Interactive Shell\n"
             self.postLoopMsg = "\nFemShell exiting"
-         
+
         if cmdqueue:
-            self.cmdqueue = cmdqueue   
-               
+            self.cmdqueue = cmdqueue
+
     def preloop(self):
         if self.preLoopMsg:
             print(self.preLoopMsg)
         super(FemShell, self).preloop()
         if readline and os.path.exists(self.histfile):
             readline.read_history_file(self.histfile)
-        
+
     def postloop(self):
         if self.postLoopMsg:
             print(self.postLoopMsg)
@@ -91,43 +89,43 @@ class FemShell(cmd.Cmd,object):
         if readline:
             readline.set_history_length(self.histfile_size)
             readline.write_history_file(self.histfile)
-                       
- 
+
+
     def emptyline(self):
         pass
-    
+
     def do_exit(self, s):
         '''
         Exits the shell (Ctrl-D can also be used)
         '''
         return True;
-    
+
     def help_exit(self):
         print(self.do_exit.__doc__)
-        
+
     do_EOF = do_exit
     help_EOF = help_exit
     do_quit = do_exit
     help_quit = help_exit
     do_end = do_exit
-           
+
     def help_help(self):
         print("Provides help for all commands, or type help <topic> for a specific command")
-        
+
     def do_shell(self, s):
         '''
         Executes a system shell command
         Syntax: shell <cmd>
         '''
         os.system(s)
-        
+
     def help_shell(self):
         print(self.do_shell.__doc__)
-    
+
     def do_wait(self, s):
         '''
         wait <time>: Waits for the specified time in seconds
-        time can be non-integer value in secs, e.g. 0.1 
+        time can be non-integer value in secs, e.g. 0.1
         '''
         waitParams = s.split()
         if len(waitParams) != 1:
@@ -139,7 +137,7 @@ class FemShell(cmd.Cmd,object):
             print("*** error: invalid wait syntax (wait <secs>)")
             return
         time.sleep(waitTime)
-        
+
     def help_wait(self):
         print(self.do_wait.__doc__)
 
@@ -151,15 +149,15 @@ class FemShell(cmd.Cmd,object):
         console = code.InteractiveConsole(locals=self.pystate)
         try:
             cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
-            console.interact(banner = "Python %s on %s\n%s\n(%s)" % 
+            console.interact(banner = "Python %s on %s\n%s\n(%s)" %
                              (sys.version, sys.platform, cprt, self.__class__.__name__))
         except:
             print("Embedded console terminated")
             pass
-        
+
     def help_py(self):
         print(self.do_py.__doc__)
-                            
+
     def do_for(self, s):
         '''
 Creates for-loop style iteration over a set of commands.
@@ -167,9 +165,9 @@ Creates for-loop style iteration over a set of commands.
 Syntax  : for <var> in <list_expr>
 Where   :     <var>      = variable name to be substituted in iteration
              <list_expr> = python expression that evaluates to a list, e.g. range(1,10,1) or [1,2,3]
-             
+
 The loop is closed with the \'end\' command. Nested loops are permitted provided variable
-names are lexicographically unique. Substitution is performed within the block where the 
+names are lexicographically unique. Substitution is performed within the block where the
 expression $<var> is found. Indentation of loops is optional.
 
 Example:
@@ -194,9 +192,9 @@ Example:
         if not isinstance(iterList, list):
             print("***: invalid for syntax (for <var> in <list expression>)")
             return
-        
+
         iterVarSubsPat = '$' + forParams[0]
-        
+
         inLoop = True
         cmdQueue = []
         while inLoop:
@@ -213,43 +211,43 @@ Example:
 
             line = line.strip()
             cmd = line.split()[0]
-            
+
             if cmd == 'for':
                 self.loopRecurseDepth += 1
- 
+
             if cmd == 'end':
                     if self.loopRecurseDepth > 0:
                         self.loopRecurseDepth -= 1
                     else:
                         inLoop = False
             cmdQueue.append(line)
-        
+
         for iterVarVal in iterList:
             subsQueue = [cmd.replace(iterVarSubsPat, str(iterVarVal)) for cmd in cmdQueue]
             subShell = FemShell(stdin=self.stdin, cmdqueue=subsQueue)
             subShell.cmdloop()
-  
+
     def help_for(self):
         print(self.do_for.__doc__)
-        
+
     def help_end(self):
         print("Terminates a for loop")
-         
+
     def do_echo(self, s):
         '''
         Echoes any output back to user
         '''
         print(s)
-               
+
     def help_echo(self):
         print(self.do_echo.__doc__)
-           
+
     def do_open(self, s):
         '''
         Opens a new connection to a FEM.
         Syntax: open <addr> <port>
         '''
-         
+
         params = s.split()
         if len(params) != 2:
             print("*** Invalid number of arguments")
@@ -260,30 +258,30 @@ Example:
         except ValueError:
             print("***: parameter 2 (port) must be a number")
             return
-        
+
         try:
             self.__class__.connectedFem = FemClient((host, port))
         except FemClientError as xxx_todo_changeme:
             (strerror) = xxx_todo_changeme
             print("FEM connection error:", strerror)
             self.__class__.connectedFem = None
-             
+
     def help_open(self):
         print(self.do_open.__doc__)
-    
+
     def do_write(self, s):
         '''
         Writes data to a FEM using the command protocol.
-        Syntax: write <bus> <width> <addr> <values...> 
+        Syntax: write <bus> <width> <addr> <values...>
         where bus = GPIO, I2C, RAW, REG, RDMA, EEPROM, DIRECT
               width = BYTE, WORD, LONG
         '''
-        
+
         params = s.split()
         if len(params) < 4:
             print("*** Invalid number of arguments")
             return
-        
+
         #  Decode bus parameter string to bus ID
         busStr = string.upper(params[0])
         if busStr in FemShell.busEncoding:
@@ -299,7 +297,7 @@ Example:
         else:
             print("*** width parameter not recognized")
             return
-        
+
         # Get address and values from remaining parameters, allowing hex conversion to int
         try:
             addr = int(params[2], 0)
@@ -307,18 +305,18 @@ Example:
         except ValueError:
             print("*** address and value parameters must be integer")
             return
-            
+
         # Issue the write command to the FEM
         if self.__class__.connectedFem == None:
             print("*** Not connected to a FEM")
             return
 
         try:
-            if self.timerEnabled: t0 = time.time()        
+            if self.timerEnabled: t0 = time.time()
             self.__class__.connectedFem.write(bus, width, addr, values)
-            if self.timerEnabled: 
+            if self.timerEnabled:
                 deltaT = time.time() - t0
-                print("Transaction took %.3f secs" % deltaT) 
+                print("Transaction took %.3f secs" % deltaT)
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -330,22 +328,22 @@ Example:
             else:
                 print("*** FEM Exception:", e, 'errno=', e.errno)
 
-            
+
     def help_write(self):
         print(self.do_write.__doc__)
 
     def do_read(self, s):
         '''
         Reads data from a FEM using the command protocol.
-        Syntax: read <bus> <width> <addr> <numReads> 
+        Syntax: read <bus> <width> <addr> <numReads>
         where bus = GPIO, I2C, RAW, REG, RDMA
               width = BYTE, WORD, LONG
-        '''        
+        '''
         params = s.split()
         if len(params) < 4:
             print("*** Invalid number of arguments")
             return
-        
+
         #  Decode bus parameter string to bus ID
         busStr = string.upper(params[0])
         if busStr in FemShell.busEncoding:
@@ -369,24 +367,24 @@ Example:
         except ValueError:
             print("*** parameters must be integer")
             return
-        
-        # Issue read command to FEM  
+
+        # Issue read command to FEM
         if self.__class__.connectedFem == None:
             print("*** Not connected to a FEM")
-            return  
+            return
 
         try:
             if self.timerEnabled: t0 = time.time()
             values = self.__class__.connectedFem.read(bus, width, addr, length)
             if self.timerEnabled: deltaT = time.time() - t0
-           
-            try: 
+
+            try:
                 print("Got results:", ['0x{:X}'.format(result) for result in values])
             except TypeError:
                 print("Can't decode results")
-                
+
             if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
-            
+
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
                 print("*** Error, FEM has closed the client connection")
@@ -396,11 +394,11 @@ Example:
                 self.do_close(None)
             else:
                 print("*** FEM Exception: %s (errno=%d)" % (e, e.errno))
-      
-        
+
+
     def help_read(self):
         print(self.do_read.__doc__)
-        
+
     def do_close(self, s):
         '''
         Closes a connection to a FEM
@@ -408,21 +406,21 @@ Example:
         if self.__class__.connectedFem != None:
             self.__class__.connectedFem.close()
             self.__class__.connectedFem = None
-            
+
     def help_close(self):
         print(self.do_close.__doc__)
-        
+
     def do_timer(self, s):
         '''
         Enables or disables transaction timer
         Syntax: timer [on|off]
         '''
-        
+
         params=s.split()
         if len(params) != 1:
             print("*** Invalid number of arguments")
             return
-        
+
         #argStr = string.lower(params[0])
         argStr = params[0].lower()
         if argStr == 'on':
@@ -434,10 +432,10 @@ Example:
         else:
             print("Unrecognised parameter: ", argStr)
             return
-    
+
     def help_timer(self):
-        print(self.do_timer.__doc__)   
-                              
+        print(self.do_timer.__doc__)
+
     def do_config(self, s):
         '''
         Read or write FEM configuration block from EEPROM
@@ -456,12 +454,12 @@ Example:
             boardtype=X            : update board type
         '''
         params = s.split()
-        
+
         #direction = string.lower(params[0])
         direction = params[0].lower()
-        
+
         if direction == 'read':
-            
+
             # Do an EEPROM read
             try:
                 femConfig = self.__class__.connectedFem.configRead()
@@ -472,13 +470,13 @@ Example:
                 print("Can't read EEPROM configuration from FEM: {}".format(e))
 
         elif direction == 'write':
-            
+
             # Do an EEPROM read and load into a config object
             theConfig = self.__class__.connectedFem.configRead()
-            
+
             # Parse argument list and udpdate recognised parameters
             for param in params[1:]:
-                
+
                 # Convert to lower case and split on key=value syntax
                 param = param.lower()
                 try:
@@ -486,9 +484,9 @@ Example:
                 except ValueError:
                     print("*** Parameter", param, "not in key=value format")
                     continue
-                
+
                 # Parse for recognised keys and update fields in current configuration
-                
+
                 if key == 'mac':  #  MAC address
                     try:
                         mac_addr = value.split(':')
@@ -497,12 +495,12 @@ Example:
                         continue
                     if len(mac_addr) != 6:
                         print('*** MAC address', value, 'has incorrect number of octets')
-                        continue                    
+                        continue
                     try:
                         theConfig.net_mac = [int(octet, 16) for octet in mac_addr]
-                    except ValueError:  
+                    except ValueError:
                         print("*** MAC address", value, 'has illegal octet', octet)
-                         
+
                 elif key == 'ip': # IP address
                     try:
                         net_ip = value.split('.')
@@ -530,7 +528,7 @@ Example:
                         theConfig.net_mask = [int(octet) for octet in net_mask]
                     except ValueError:
                         print("*** Netmask", value, "has illegal octet", octet)
-                        
+
                 elif key == 'gw': # Gateway
                     try:
                         net_gw = value.split('.')
@@ -555,8 +553,8 @@ Example:
                     try:
                         theConfig.temp_crit = int(value)
                     except ValueError:
-                        print("*** Critical temperature value specified is not integer")                        
-                        
+                        print("*** Critical temperature value specified is not integer")
+
                 elif key == 'sw': # Software revision
                     try:
                         (major, minor) = value.split('.')
@@ -564,7 +562,7 @@ Example:
                         theConfig.sw_minor_version = int(minor)
                     except ValueError:
                         print('*** S/W version', value, 'not recognised')
-                        
+
                 elif key == 'fw': # Firmware revision
                     try:
                         (major, minor) = value.split('.')
@@ -572,7 +570,7 @@ Example:
                         theConfig.fw_minor_version = int(minor)
                     except ValueError:
                         print('*** F/W version', value, 'not recognised')
-                        
+
                 elif key == 'hw': # Hardware revision
                     try:
                         (major, minor) = value.split('.')
@@ -580,32 +578,32 @@ Example:
                         theConfig.hw_minor_version = int(minor)
                     except ValueError:
                         print('*** H/W version', value, 'not recognised')
-                                                  
+
                 elif key == 'boardid': # Board ID
                     try:
                         theConfig.board_id = int(value)
                     except ValueError:
                         print("*** Board ID value specified is not integer")
-                        
+
                 elif key == 'boardtype': # Board type
                     try:
                         theConfig.board_type = int(value)
                     except ValueError:
                         print("*** Board type value specified is not integer")
-                        
+
                 else: # Unrecognised key
                     print("Key", key, "not recognised")
 
             # Reset magic word to correct value if necessary
             if theConfig.magicWord != FemConfig.CONFIG_MAGIC_WORD:
-                print("WARNING: resetting config magic word to correct value (was 0x%04X, now 0x%04X)" % (theConfig.magicWord, FemConfig.CONFIG_MAGIC_WORD)) 
+                print("WARNING: resetting config magic word to correct value (was 0x%04X, now 0x%04X)" % (theConfig.magicWord, FemConfig.CONFIG_MAGIC_WORD))
                 theConfig.magicWord = FemConfig.CONFIG_MAGIC_WORD
-                
+
             # Write config back to FEM
-            try:            
+            try:
                 ack = self.__class__.connectedFem.configWrite(theConfig)
                 #print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
-                
+
             except FemClientError as e:
                 if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
                     print("*** Error, FEM has closed the client connection")
@@ -615,46 +613,46 @@ Example:
                     self.do_close(None)
                 else:
                     print("*** FEM Exception:", e, 'errno=', e.errno)
-       
-        
+
+
         else:
             print("Unrecognised config direction")
-    
-    
+
+
     def help_config(self):
-        print(self.do_config.__doc__)                          
- 
+        print(self.do_config.__doc__)
+
     def do_cmd(self, s):
         '''
-        Sends command transaction to FEM 
+        Sends command transaction to FEM
         Syntax: cmd <command> <arg>
         '''
         params = s.split()
         if len(params) < 2:
             print("*** Invalid number of arguments")
             return
-        
+
         #theCmd = string.upper(params[0])
         try:
             theCmd = int(params[0])
         except ValueError:
             print("*** Command parameter must be integer (for now!)")
             return
-        
+
         try:
             theArg = int(params[1])
         except ValueError:
             print("*** Argument parameter must be integer")
             return
-        
+
         try:
             if self.timerEnabled: t0 = time.time()
             ack = self.__class__.connectedFem.commandSend(theCmd, theArg)
             if self.timerEnabled: deltaT = time.time() - t0
-            #print("Got ack: ", ['0x{:X}'.format(result) for result in ack])  
-           
+            #print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
+
             if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
-            
+
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
                 print("*** Error, FEM has closed the client connection")
@@ -665,30 +663,30 @@ Example:
             else:
                 print("*** FEM Exception:", e, 'errno=', e.errno)
 
-                               
+
     def help_cmd(self):
         print(self.do_cmd.__doc__)
-        
+
     def do_acquire(self, s):
         '''
         Sends acquire command to the DMA controller of the FEM
-        Syntax: acquire [config <mode> <bufSize> <bufNum> <numAcqs>|start|stop|status] 
+        Syntax: acquire [config <mode> <bufSize> <bufNum> <numAcqs>|start|stop|status]
         where config params are:
            mode     : normal, burst, rx, tx or upload
            bufSize  : buffer size to set up
            bufNum   : number of buffers to set up (0=maximise in memory)
            numAcqs  : number of images acquisitions to run
            coalesce : number of RXed images to coalesce before TX
-           
+
         N.B. start, stop and status commands require no additional parameters
         '''
-        
+
         params = s.split()
-        
+
         if len(params) < 1:
             print("*** Invalid number of arguments")
             return
-        
+
         # Initialize default parameters
         cmd      = None
         mode     = None
@@ -696,20 +694,20 @@ Example:
         bufCount = None
         numAcqs  = None
         coalesce = None
-        
+
         #acqCommand = string.lower(params[0])
         acqCommand = params[0].lower()
-        
+
         if acqCommand == 'config':
-            
-            # Need an additional five parameters (mode, size, count, numAcqs, coalesce)          
+
+            # Need an additional five parameters (mode, size, count, numAcqs, coalesce)
             if len(params) < 6:
                 print("*** Invalid number of arguments for acquire configuration", len(params))
                 return
-            
+
             # Set command
             cmd = FemTransaction.CMD_ACQ_CONFIG
-            
+
             # Decode mode parameter string to mode ID
             modeStr = string.upper(params[1])
             if modeStr in FemShell.acqModeEncoding:
@@ -717,7 +715,7 @@ Example:
             else:
                 print("*** mode parameter not recognized")
                 return
-            
+
             # Try to decode buffer size, count and number of acqs from remaining params
             try:
                 bufSize  = int(params[2], 0)
@@ -727,38 +725,38 @@ Example:
             except ValueError:
                 print("*** buffer size, count, numAcq and coalesce parameters must be integer")
                 return
-                        
+
         elif acqCommand == 'start':
             # Set command
             cmd = FemTransaction.CMD_ACQ_START
-            
+
         elif acqCommand == 'stop':
             # Set command
             cmd = FemTransaction.CMD_ACQ_STOP
-            
+
         elif acqCommand == 'status':
             # Set command
             cmd = FemTransaction.CMD_ACQ_STATUS
 
         elif acqCommand == 'reset':
             cmd = FemTransaction.CMD_ACQ_RESET
-            
-        else:                
+
+        else:
             print("Unrecognised acquire command:", acqCommand)
             return
-        
+
         # Send acquire command to the FEM
         if self.__class__.connectedFem == None:
             print("*** Not connected to a FEM")
             return
         try:
-            
+
             ack = self.__class__.connectedFem.acquireSend(cmd, mode, bufSize, bufCount, numAcqs, coalesce)
-            
+
             if acqCommand == 'status':
-                
+
                 if ack[0] == 0:
-                    
+
                     status       = ack[1]
                     bufCount     = ack[2]
                     bufSize      = ack[3]
@@ -771,12 +769,12 @@ Example:
                     totalRecvBot = ack[10]
                     totalSent    = ack[11]
                     totalErrors  = ack[12]
-                    
+
                     if status in FemShell.acqStatusEncoding:
                         statusStr = FemShell.acqStatusEncoding[status]
                     else:
                         statusStr = 'UNKNOWN STATUS:', status
-                        
+
                     print("    Status          :", statusStr)
                     print("    Buffer count    :", hex(ack[2]))
                     print("    Buffer size     :", hex(ack[3]))
@@ -789,12 +787,12 @@ Example:
                     print("    Total recvd bot :", totalRecvBot)
                     print("    Total sent      :", totalSent)
                     print("    Total errors    :", totalErrors)
-                    
+
                 else:
-                    print("Got bad ACK on acquire status command from FEM:", ack[0])  
+                    print("Got bad ACK on acquire status command from FEM:", ack[0])
             else:
                 print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
-                
+
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
                 print("*** Error, FEM has closed the client connection")
@@ -804,31 +802,31 @@ Example:
                 self.do_close(None)
             else:
                 print("*** FEM Exception:", e, 'errno=', e.errno)
-                
-            
+
+
     def help_acquire(self):
         print(self.do_acquire.__doc__)
-        
+
     def do_pers(self,s):
         '''
         Sends a personality module command transaction to FEM
-        Syntax: pers <cmd> [payload,...] 
+        Syntax: pers <cmd> [payload,...]
         where params are:
            cmd      : integer personality cmd to send
-           payload  : optional list of integer words to send as payload           
-       '''      
-        
+           payload  : optional list of integer words to send as payload
+       '''
+
         params = s.split()
         if len(params) < 1:
             print("** Invalid number of arguments")
             return
-    
+
         try:
             thePersCmd = int(params[0])
         except ValueError:
             print("Command parameters must be integer")
             return
-        
+
         cmdArgs = None
         if len(params) > 1:
             try:
@@ -836,15 +834,15 @@ Example:
             except ValueError:
                 print("Personality command parameters must be integer")
                 return
-        
+
         try:
             if self.timerEnabled: t0 = time.time()
             response = self.__class__.connectedFem.personalitySend(thePersCmd, cmdArgs)
             if self.timerEnabled: deltaT = time.time() - t0
-            
+
             print(response)
             #print("Got response:", ['0x{:X}'.format(value) for value in response])
-            
+
             if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
 
         except FemClientError as e:
@@ -856,12 +854,12 @@ Example:
                 self.do_close(None)
             else:
                 print("*** FEM Exception:", e, 'errno=', e.errno)
-                
+
     def help_pers(self):
         print(self.do_pers.__doc__)
-        
+
 def main():
-                 
+
     if len(sys.argv) > 1:
         if sys.argv[1] == '-f':
             cmdFile = open(sys.argv[2], 'rt')
@@ -869,9 +867,9 @@ def main():
                 FemShell(stdin=cmdFile).cmdloop()
             finally:
                 cmdFile.close()
-        else:   
+        else:
             FemShell().onecmd(' '.join(sys.argv[1:]))
-    else:    
+    else:
         FemShell().cmdloop()
 
 if __name__ == "__main__":
