@@ -1,10 +1,11 @@
 import argparse
 import copy
 
-from fem.client import FemClient, FemClientError
 from fem.api.config import FemConfig
+from fem.client import FemClient, FemClientError
 
-class FemReconfigIp(object):
+
+class FemReconfigIp:
 
     def __init__(self):
 
@@ -25,17 +26,17 @@ class FemReconfigIp(object):
     def run(self):
 
         # Sanity check that at least one of new IP, mask or gateway is specified
-        if self.args.newip == None and self.args.newmask == None and self.args.newgw == None:
+        if self.args.newip is None and self.args.newmask is None and self.args.newgw is None:
             print("ERROR: you must specify at least one of new IP address, mask or gateway")
             return
 
         # Open a connection to the FEM
         try:
-            print("Connecting to FEM at IP address {} port {} ... ".format(self.args.femip, self.args.femport), end="")
+            print(f"Connecting to FEM at IP address {self.args.femip} port {self.args.femport} ... ", end="")
             self.fem = FemClient((self.args.femip, self.args.femport))
             print("OK")
         except FemClientError as e:
-            print("failed to connect: {}", e)
+            print("failed to connect", str(e))
             return
 
         # Read the FEM configuration EEPROM
@@ -45,7 +46,7 @@ class FemReconfigIp(object):
             print("OK")
 
         except FemClientError as e:
-            print("failed: {}", e)
+            print("failed:", str(e))
             self.fem.close()
             return
 
@@ -55,30 +56,29 @@ class FemReconfigIp(object):
             self.fem.close()
             return
         else:
-            print("FEM has correctly initialised EEPROM configuration with existing IP: {} mask: {} gateway: {}".format(
-                    fem_config.net_ip_addr_str(), fem_config.net_ip_mask_str(), fem_config.net_ip_gw_str()))
+            print(f"FEM has correctly initialised EEPROM configuration with existing IP: {fem_config.net_ip_addr_str()} mask: {fem_config.net_ip_mask_str()} gateway: {fem_config.net_ip_gw_str()}")
 
         # Update the configuration with the new parameters that have been specified
         updated_config_ok = True
         new_fem_config = copy.deepcopy(fem_config)
 
-        if self.args.newip != None:
+        if self.args.newip is not None:
             newip = self.split_addr(self.args.newip, "IP address")
-            if newip != None:
+            if newip is not None:
                 new_fem_config.net_ip = newip
             else:
                 updated_config_ok = False
 
-        if self.args.newmask != None:
+        if self.args.newmask is not None:
             newmask = self.split_addr(self.args.newmask, "mask")
-            if newmask != None:
+            if newmask is not None:
                 new_fem_config.net_mask = newmask
             else:
                 updated_config_ok = False
 
-        if self.args.newgw != None:
+        if self.args.newgw is not None:
             newgw = self.split_addr(self.args.newgw, "gateway")
-            if newgw != None:
+            if newgw is not None:
                 new_fem_config.net_gw = newgw
             else:
                 updated_config_ok = False
@@ -88,8 +88,7 @@ class FemReconfigIp(object):
             config_updated = False
             if new_fem_config.net_ip != fem_config.net_ip or new_fem_config.net_mask != fem_config.net_mask or new_fem_config.net_gw != fem_config.net_gw:
 
-                print("\nReady to write FEM EEPROM configuration with updated IP: {} mask: {} gateway: {}".format(
-                        new_fem_config.net_ip_addr_str(), new_fem_config.net_ip_mask_str(), new_fem_config.net_ip_gw_str()))
+                print(f"\nReady to write FEM EEPROM configuration with updated IP: {new_fem_config.net_ip_addr_str()} mask: {new_fem_config.net_ip_mask_str()} gateway: {new_fem_config.net_ip_gw_str()}")
 
                 reply = input("\n      Are you SURE you want to proceed? (y/N) : ")
 
@@ -97,7 +96,6 @@ class FemReconfigIp(object):
 
                     print("\nWriting EEPROM configuration to FEM ... ", end="")
                     try:
-                        pass
                         self.fem.configWrite(new_fem_config)
                         print("done")
                         config_updated = True
@@ -107,7 +105,7 @@ class FemReconfigIp(object):
                             print("done")
                             config_updated = True
                         else:
-                            print("FAILED: {}".format(e))
+                            print(f"FAILED: {e}")
 
                     # If the configuration was updated OK, read it back and validate
                     if config_updated:
@@ -116,7 +114,7 @@ class FemReconfigIp(object):
                         try:
                             updated_fem_config = self.fem.configRead()
                         except FemClientError as e:
-                            print("FAILED: {}".format(e))
+                            print(f"FAILED: {e}")
                         else:
                             if updated_fem_config.net_ip == new_fem_config.net_ip and  \
                                updated_fem_config.net_mask == new_fem_config.net_mask and \
@@ -126,7 +124,7 @@ class FemReconfigIp(object):
                                 print("ERROR: mismatch in verified FEM configuraiton, please seek expert assistance")
 
                 else:
-                    print("\OK, not changing FEM EEPROM configuration")
+                    print("OK, not changing FEM EEPROM configuration")
 
             else:
                 print("No IP settings will change - not updating FEM configuration")
@@ -141,17 +139,17 @@ class FemReconfigIp(object):
         try:
             values = addr.split('.')
         except ValueError:
-            print("Specified {} {} has incorrect format".format(name, addr))
+            print(f"Specified {name} {addr} has incorrect format")
             return None
 
         if len(values) != 4:
-            print("Specified {} {} has wrong number of octets".format(name, addr))
+            print(f"Specified {name} {addr} has wrong number of octets")
             return None
 
         try:
             addr_octets = [int(octet) for octet in values]
         except ValueError:
-            print("Specified {} {} has illegal octet value \'{}\'".format(name, addr, octet))
+            print(f"Specified {name} {addr} has illegal octet value")
             return None
 
         return addr_octets

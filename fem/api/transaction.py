@@ -5,9 +5,10 @@ Created on 28 Mar 2011
 '''
 
 import struct
-import sys
+from typing import ClassVar
 
-class FemTransaction():
+
+class FemTransaction:
     '''
     FEM communication protocol transaction
     '''
@@ -55,10 +56,12 @@ class FemTransaction():
     ACQ_MODE_TX_ONLY      = 4
     ACQ_MODE_UPLOAD       = 5
 
-    widthEncoding =  { WIDTH_UNSUPPORTED : (0, 'x'),
-                       WIDTH_BYTE        : (1, 'B'),
-                       WIDTH_WORD        : (2, 'H'),
-                       WIDTH_LONG        : (4, 'I')}
+    widthEncoding: ClassVar =  {
+        WIDTH_UNSUPPORTED : (0, 'x'),
+        WIDTH_BYTE        : (1, 'B'),
+        WIDTH_WORD        : (2, 'H'),
+        WIDTH_LONG        : (4, 'I')
+    }
 
     @classmethod
     def headerSize(cls):
@@ -158,7 +161,7 @@ class FemTransaction():
                 self.payload = tuple(payload)
 
             else:
-                if payload == None:
+                if payload is None:
                     #TODO: How can a write have no payload - exception?
                     self.payloadLen = 0
                     self.payload = ()
@@ -202,25 +205,20 @@ class FemTransaction():
 
     def encode(self):
         transaction = (self.magicWord, self.command, self.bus, self.width, self.state, self.address, self.payloadLen) + self.payload
-        #print(self.formatStr)
         try:
             return struct.pack(self.formatStr, *(transaction))
-        except:
-            print(transaction)
+        except struct.error as e:
+            print(e)
 
     def decode(self):
         return struct.unpack(self.formatStr, self.encoded)
 
     def decodeErrorResponse(self):
 
-        if sys.version_info > (3,):
-            errNo = self.encoded[FemTransaction.headerSize()]
-            errStr = self.encoded[FemTransaction.headerSize()+1:].decode()
-            return (errNo, errStr)
-
-        (errNo,) = struct.unpack('!b', str(self.encoded[FemTransaction.headerSize()]))
-        errStr = "".join(self.encoded[FemTransaction.headerSize()+1:])
+        errNo = self.encoded[FemTransaction.headerSize()]
+        errStr = self.encoded[FemTransaction.headerSize()+1:].decode()
         return (errNo, errStr)
+
 
     def __str__(self):
 

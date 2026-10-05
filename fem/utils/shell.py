@@ -4,52 +4,57 @@ Created on 22 Mar 2011
 @author: tcn
 '''
 import cmd
-import os
-import string
-import time
 import code
+import os
 import sys
+import time
+from typing import ClassVar
 
 try:
     import readline
 except ImportError:
     readline = None
 
-from fem.client import FemClient, FemClientError
-from fem.api.transaction import FemTransaction
 from fem.api.config import FemConfig
+from fem.api.transaction import FemTransaction
+from fem.client import FemClient, FemClientError
 
-class FemShell(cmd.Cmd,object):
+
+class FemShell(cmd.Cmd):
 
     connectedFem = None;
     timerEnabled = False;
 
-    busEncoding = { 'EEPROM' : FemTransaction.BUS_EEPROM ,
-                    'I2C'    : FemTransaction.BUS_I2C  ,
-                    'RAW'    : FemTransaction.BUS_RAW_REG ,
-                    'REG'    : FemTransaction.BUS_RAW_REG,
-                    'RDMA'   : FemTransaction.BUS_RDMA,
-                    'DIRECT' : FemTransaction.BUS_DIRECT
-                  }
+    busEncoding: ClassVar = {
+        'EEPROM' : FemTransaction.BUS_EEPROM ,
+        'I2C'    : FemTransaction.BUS_I2C  ,
+        'RAW'    : FemTransaction.BUS_RAW_REG ,
+        'REG'    : FemTransaction.BUS_RAW_REG,
+        'RDMA'   : FemTransaction.BUS_RDMA,
+        'DIRECT' : FemTransaction.BUS_DIRECT
+    }
 
-    widthEncoding = { 'BYTE' : FemTransaction.WIDTH_BYTE,
-                      'WORD' : FemTransaction.WIDTH_WORD,
-                      'LONG' : FemTransaction.WIDTH_LONG
-                    }
+    widthEncoding: ClassVar = {
+        'BYTE' : FemTransaction.WIDTH_BYTE,
+        'WORD' : FemTransaction.WIDTH_WORD,
+        'LONG' : FemTransaction.WIDTH_LONG
+    }
 
-    acqModeEncoding = { 'NORMAL' : FemTransaction.ACQ_MODE_NORMAL,
-                        'BURST'  : FemTransaction.ACQ_MODE_BURST,
-                        'RX'     : FemTransaction.ACQ_MODE_RX_ONLY,
-                        'TX'     : FemTransaction.ACQ_MODE_TX_ONLY,
-                        'UPLOAD' : FemTransaction.ACQ_MODE_UPLOAD
-                      }
+    acqModeEncoding: ClassVar = {
+        'NORMAL' : FemTransaction.ACQ_MODE_NORMAL,
+        'BURST'  : FemTransaction.ACQ_MODE_BURST,
+        'RX'     : FemTransaction.ACQ_MODE_RX_ONLY,
+        'TX'     : FemTransaction.ACQ_MODE_TX_ONLY,
+        'UPLOAD' : FemTransaction.ACQ_MODE_UPLOAD
+    }
 
-    acqStatusEncoding = { 0 : 'IDLE',
-                          1 : 'CONFIG BUSY',
-                          2 : 'NORMAL ACQ',
-                          3 : 'UPLOAD ACQ',
-                          4 : 'STOPPING ACQ'
-                        }
+    acqStatusEncoding: ClassVar = {
+        0 : 'IDLE',
+        1 : 'CONFIG BUSY',
+        2 : 'NORMAL ACQ',
+        3 : 'UPLOAD ACQ',
+        4 : 'STOPPING ACQ'
+    }
 
     def __init__(self, completekey='tab', stdin=None, stdout=None, cmdqueue=None):
 
@@ -78,14 +83,14 @@ class FemShell(cmd.Cmd,object):
     def preloop(self):
         if self.preLoopMsg:
             print(self.preLoopMsg)
-        super(FemShell, self).preloop()
+        super().preloop()
         if readline and os.path.exists(self.histfile):
             readline.read_history_file(self.histfile)
 
     def postloop(self):
         if self.postLoopMsg:
             print(self.postLoopMsg)
-        super(FemShell, self).postloop()
+        super().postloop()
         if readline:
             readline.set_history_length(self.histfile_size)
             readline.write_history_file(self.histfile)
@@ -133,7 +138,7 @@ class FemShell(cmd.Cmd,object):
             return
         try:
             waitTime = float(waitParams[0])
-        except:
+        except ValueError:
             print("*** error: invalid wait syntax (wait <secs>)")
             return
         time.sleep(waitTime)
@@ -148,12 +153,13 @@ class FemShell(cmd.Cmd,object):
         self.pystate['self'] = self
         console = code.InteractiveConsole(locals=self.pystate)
         try:
-            cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
-            console.interact(banner = "Python %s on %s\n%s\n(%s)" %
-                             (sys.version, sys.platform, cprt, self.__class__.__name__))
-        except:
+            console.interact(
+                banner = f"Python {{{sys.version}}} on {sys.platform}\n"
+                'Type "help", "copyright", "credits" or "license" for more information.\n'
+                f"({self.__class__.__name__})"
+            )
+        except ValueError:
             print("Embedded console terminated")
-            pass
 
     def help_py(self):
         print(self.do_py.__doc__)
@@ -185,7 +191,7 @@ Example:
             return
         try:
             iterList = eval(' '.join(forParams[2:]))
-        except:
+        except (NameError, SyntaxError, TypeError, ValueError):
             print("***: invalid for syntax (for <var> in <list expression>)")
             return
 
@@ -261,9 +267,8 @@ Example:
 
         try:
             self.__class__.connectedFem = FemClient((host, port))
-        except FemClientError as xxx_todo_changeme:
-            (strerror) = xxx_todo_changeme
-            print("FEM connection error:", strerror)
+        except FemClientError as err:
+            print("FEM connection error:", str(err))
             self.__class__.connectedFem = None
 
     def help_open(self):
@@ -283,7 +288,7 @@ Example:
             return
 
         #  Decode bus parameter string to bus ID
-        busStr = string.upper(params[0])
+        busStr = params[0].upper()
         if busStr in FemShell.busEncoding:
             bus = FemShell.busEncoding[busStr]
         else:
@@ -291,7 +296,7 @@ Example:
             return
 
         # Decode width parameter string to width ID
-        widthStr = string.upper(params[1])
+        widthStr = params[1].upper()
         if widthStr in FemShell.widthEncoding:
             width = FemShell.widthEncoding[widthStr]
         else:
@@ -307,16 +312,17 @@ Example:
             return
 
         # Issue the write command to the FEM
-        if self.__class__.connectedFem == None:
+        if self.__class__.connectedFem is None:
             print("*** Not connected to a FEM")
             return
 
         try:
-            if self.timerEnabled: t0 = time.time()
+            if self.timerEnabled:
+                t0 = time.time()
             self.__class__.connectedFem.write(bus, width, addr, values)
             if self.timerEnabled:
                 deltaT = time.time() - t0
-                print("Transaction took %.3f secs" % deltaT)
+                print(f"Transaction took {deltaT:.3f} secs")
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -345,7 +351,7 @@ Example:
             return
 
         #  Decode bus parameter string to bus ID
-        busStr = string.upper(params[0])
+        busStr = params[0].upper()
         if busStr in FemShell.busEncoding:
             bus = FemShell.busEncoding[busStr]
         else:
@@ -353,7 +359,7 @@ Example:
             return
 
         # Decode width parameter string to width ID
-        widthStr = string.upper(params[1])
+        widthStr = params[1].upper()
         if widthStr in FemShell.widthEncoding:
             width = FemShell.widthEncoding[widthStr]
         else:
@@ -369,21 +375,24 @@ Example:
             return
 
         # Issue read command to FEM
-        if self.__class__.connectedFem == None:
+        if self.__class__.connectedFem is None:
             print("*** Not connected to a FEM")
             return
 
         try:
-            if self.timerEnabled: t0 = time.time()
+            if self.timerEnabled:
+                t0 = time.time()
             values = self.__class__.connectedFem.read(bus, width, addr, length)
-            if self.timerEnabled: deltaT = time.time() - t0
+            if self.timerEnabled:
+                deltaT = time.time() - t0
 
             try:
-                print("Got results:", ['0x{:X}'.format(result) for result in values])
+                print("Got results:", [f'0x{result:X}' for result in values])
             except TypeError:
                 print("Can't decode results")
 
-            if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
+            if self.timerEnabled:
+                print(f"Transaction took {deltaT:.3f} secs")
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -393,7 +402,7 @@ Example:
                 print("*** Socket error on FEM connection:", e.msg)
                 self.do_close(None)
             else:
-                print("*** FEM Exception: %s (errno=%d)" % (e, e.errno))
+                print(f"*** FEM Exception: {e} (errno={e.errno})")
 
 
     def help_read(self):
@@ -403,7 +412,7 @@ Example:
         '''
         Closes a connection to a FEM
         '''
-        if self.__class__.connectedFem != None:
+        if self.__class__.connectedFem is not None:
             self.__class__.connectedFem.close()
             self.__class__.connectedFem = None
 
@@ -466,8 +475,8 @@ Example:
                 print("    FEM EEPROM Configuration")
                 print("---------------------------------")
                 print(femConfig)
-            except Exception as e:
-                print("Can't read EEPROM configuration from FEM: {}".format(e))
+            except FemClientError as e:
+                print(f"Can't read EEPROM configuration from FEM: {e}")
 
         elif direction == 'write':
 
@@ -491,69 +500,69 @@ Example:
                     try:
                         mac_addr = value.split(':')
                     except ValueError:
-                        print('*** MAC address', value, 'has incorrect format')
+                        print(f"*** MAC address {value} has incorrect format")
                         continue
                     if len(mac_addr) != 6:
-                        print('*** MAC address', value, 'has incorrect number of octets')
+                        print(f"*** MAC address {value} has incorrect number of octets")
                         continue
                     try:
                         theConfig.net_mac = [int(octet, 16) for octet in mac_addr]
                     except ValueError:
-                        print("*** MAC address", value, 'has illegal octet', octet)
+                        print(f"*** MAC address {value} has illegal octet")
 
                 elif key == 'ip': # IP address
                     try:
                         net_ip = value.split('.')
                     except ValueError:
-                        print("*** IP address", value, 'has incorrect format')
+                        print(f"*** IP address {value} has incorrect format")
                         continue
                     if len(net_ip) != 4:
-                        print("*** IP address", value, "has incorrect number of octets")
+                        print(f"*** IP address {value} has incorrect number of octets")
                         continue
                     try:
                         theConfig.net_ip = [int(octet) for octet in net_ip]
                     except ValueError:
-                        print("*** IP address", value, "has illegal octet", octet)
+                        print(f"*** IP address {value} has illegal octet")
 
                 elif key == 'mask': # Netmask
                     try:
                         net_mask = value.split('.')
                     except ValueError:
-                        print("*** Netmask", value, 'has incorrect format')
+                        print(f"*** Netmask {value} has incorrect format")
                         continue
                     if len(net_mask) != 4:
-                        print("*** Netmask", value, "has incorrect number of octets")
+                        print(f"*** Netmask {value} has incorrect number of octets")
                         continue
                     try:
                         theConfig.net_mask = [int(octet) for octet in net_mask]
                     except ValueError:
-                        print("*** Netmask", value, "has illegal octet", octet)
+                        print(f"*** Netmask {value} has illegal octet")
 
                 elif key == 'gw': # Gateway
                     try:
                         net_gw = value.split('.')
                     except ValueError:
-                        print("*** Gateway", value, 'has incorrect format')
+                        print(f"*** Gateway {value} has incorrect format")
                         continue
                     if len(net_gw) != 4:
-                        print("*** Gateway", value, "has incorrect number of octets")
+                        print(f"*** Gateway {value} has incorrect number of octets")
                         continue
                     try:
                         theConfig.net_gw = [int(octet) for octet in net_gw]
                     except ValueError:
-                        print("*** Gateway", value, "has illegal octet", octet)
+                        print(f"*** Gateway {value} has illegal octet")
 
                 elif key == 'hightemp': # High temperature setpoint
                     try:
                         theConfig.temp_high = int(value)
                     except ValueError:
-                        print("*** High temperature value specified is not integer")
+                        print(f"*** High temperature {value} is not integer")
 
                 elif key == 'crittemp': # Critical temperature setpoint
                     try:
                         theConfig.temp_crit = int(value)
                     except ValueError:
-                        print("*** Critical temperature value specified is not integer")
+                        print(f"*** Critical temperature {value} is not integer")
 
                 elif key == 'sw': # Software revision
                     try:
@@ -561,7 +570,7 @@ Example:
                         theConfig.sw_major_version = int(major)
                         theConfig.sw_minor_version = int(minor)
                     except ValueError:
-                        print('*** S/W version', value, 'not recognised')
+                        print(f"*** S/W version {value} not recognised")
 
                 elif key == 'fw': # Firmware revision
                     try:
@@ -569,7 +578,7 @@ Example:
                         theConfig.fw_major_version = int(major)
                         theConfig.fw_minor_version = int(minor)
                     except ValueError:
-                        print('*** F/W version', value, 'not recognised')
+                        print(f"*** F/W version {value} not recognised")
 
                 elif key == 'hw': # Hardware revision
                     try:
@@ -577,32 +586,34 @@ Example:
                         theConfig.hw_major_version = int(major)
                         theConfig.hw_minor_version = int(minor)
                     except ValueError:
-                        print('*** H/W version', value, 'not recognised')
+                        print(f"*** H/W version {value} not recognised")
 
                 elif key == 'boardid': # Board ID
                     try:
                         theConfig.board_id = int(value)
                     except ValueError:
-                        print("*** Board ID value specified is not integer")
+                        print(f"*** Board ID {value} is not integer")
 
                 elif key == 'boardtype': # Board type
                     try:
                         theConfig.board_type = int(value)
                     except ValueError:
-                        print("*** Board type value specified is not integer")
+                        print(f"*** Board type {value} is not integer")
 
                 else: # Unrecognised key
-                    print("Key", key, "not recognised")
+                    print(f"*** Key {key} not recognised")
 
             # Reset magic word to correct value if necessary
             if theConfig.magicWord != FemConfig.CONFIG_MAGIC_WORD:
-                print("WARNING: resetting config magic word to correct value (was 0x%04X, now 0x%04X)" % (theConfig.magicWord, FemConfig.CONFIG_MAGIC_WORD))
+                print(
+                    "WARNING: resetting config magic word to correct value "
+                    f"(was 0x{theConfig.magicWord:04X}, now 0x{FemConfig.CONFIG_MAGIC_WORD:04X})"
+                )
                 theConfig.magicWord = FemConfig.CONFIG_MAGIC_WORD
 
             # Write config back to FEM
             try:
-                ack = self.__class__.connectedFem.configWrite(theConfig)
-                #print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
+               self.__class__.connectedFem.configWrite(theConfig)
 
             except FemClientError as e:
                 if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -646,12 +657,12 @@ Example:
             return
 
         try:
-            if self.timerEnabled: t0 = time.time()
-            ack = self.__class__.connectedFem.commandSend(theCmd, theArg)
-            if self.timerEnabled: deltaT = time.time() - t0
-            #print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
-
-            if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
+            if self.timerEnabled:
+                t0 = time.time()
+            self.__class__.connectedFem.commandSend(theCmd, theArg)
+            if self.timerEnabled:
+                deltaT = time.time() - t0
+            print(f"Transaction took {deltaT:.3f} secs")
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -709,7 +720,7 @@ Example:
             cmd = FemTransaction.CMD_ACQ_CONFIG
 
             # Decode mode parameter string to mode ID
-            modeStr = string.upper(params[1])
+            modeStr = params[1].upper()
             if modeStr in FemShell.acqModeEncoding:
                 mode = FemShell.acqModeEncoding[modeStr]
             else:
@@ -791,7 +802,7 @@ Example:
                 else:
                     print("Got bad ACK on acquire status command from FEM:", ack[0])
             else:
-                print("Got ack: ", ['0x{:X}'.format(result) for result in ack])
+                print("Got ack: ", [f'0x{result:X}' for result in ack])
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -836,14 +847,17 @@ Example:
                 return
 
         try:
-            if self.timerEnabled: t0 = time.time()
+            if self.timerEnabled:
+                t0 = time.time()
             response = self.__class__.connectedFem.personalitySend(thePersCmd, cmdArgs)
-            if self.timerEnabled: deltaT = time.time() - t0
+            if self.timerEnabled:
+                deltaT = time.time() - t0
 
             print(response)
             #print("Got response:", ['0x{:X}'.format(value) for value in response])
 
-            if self.timerEnabled: print("Transaction took %.3f secs" % deltaT)
+            if self.timerEnabled:
+                print(f"Transaction took {deltaT:.3f} secs")
 
         except FemClientError as e:
             if e.errno == FemClientError.ERRNO_SOCK_CLOSED:
@@ -862,11 +876,8 @@ def main():
 
     if len(sys.argv) > 1:
         if sys.argv[1] == '-f':
-            cmdFile = open(sys.argv[2], 'rt')
-            try:
+            with open(sys.argv[2], 'rt') as cmdFile:
                 FemShell(stdin=cmdFile).cmdloop()
-            finally:
-                cmdFile.close()
         else:
             FemShell().onecmd(' '.join(sys.argv[1:]))
     else:

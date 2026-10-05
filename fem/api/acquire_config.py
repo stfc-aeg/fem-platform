@@ -5,7 +5,8 @@ Created on Mar 22, 2012
 '''
 import struct
 
-class FemAcquireConfig():
+
+class FemAcquireConfig:
     '''
     FEM acquire configuration payload
     '''
@@ -59,6 +60,7 @@ class FemAcquireConfig():
 if __name__ == '__main__':
 
     import binascii
+
     from fem.api.transaction import FemTransaction
 
     testMode     = FemTransaction.ACQ_MODE_NORMAL

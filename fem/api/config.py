@@ -4,10 +4,11 @@ Created on Aug 2, 2011
 @author: tcn45
 '''
 import struct
-from operator import xor
 from functools import reduce
+from operator import xor
 
-class FemConfig():
+
+class FemConfig:
 
     configFormat = '!H6B4B4B4B2B6B2BB'
 
@@ -122,7 +123,7 @@ class FemConfig():
 
     def __str__(self):
 
-        showStr = 'Magic word  : ' + '0x{:04X}'.format(self.magicWord) + '\n' + \
+        showStr = 'Magic word  : ' + f'0x{self.magicWord:04X}' + '\n' + \
                   'MAC Address : ' + self.net_mac_str()     + '\n' + \
                   'IP Address  : ' + self.net_ip_addr_str() + '\n' + \
                   'Netmask     : ' + self.net_ip_mask_str() + '\n' + \
@@ -134,24 +135,24 @@ class FemConfig():
                   'H/W version : ' + str(self.hw_major_version)  + '.' + str(self.hw_minor_version) + '\n' + \
                   'Board ID    : ' + str(self.board_id)          + '\n' + \
                   'Board Type  : ' + str(self.board_type)        + '\n' + \
-                  'Checksum    : ' + '0x{:02X}'.format(self.checksum) + '\n'
+                  'Checksum    : ' + f'0x{self.checksum:02X}' + '\n'
         return showStr
 
     def net_mac_str(self):
 
-        return ':'.join('%02X' % byte for byte in self.net_mac)
+        return ':'.join(f'{byte:02X}' for byte in self.net_mac)
 
     def net_ip_addr_str(self):
 
-        return ".".join('%d' % byte for byte in self.net_ip)
+        return ".".join(f'{byte}' for byte in self.net_ip)
 
     def net_ip_mask_str(self):
 
-        return ".".join('%d' % byte for byte in self.net_mask)
+        return ".".join(f'{byte}' for byte in self.net_mask)
 
     def net_ip_gw_str(self):
 
-        return ".".join('%d' % byte for byte in self.net_gw)
+        return ".".join(f'{byte}' for byte in self.net_gw)
 
 if __name__ == '__main__':
 

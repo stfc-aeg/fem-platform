@@ -4,13 +4,10 @@ Created on 22 Mar 2011
 @author: tcn
 '''
 import socket
-import binascii
-from types import *
-import sys
 
-from fem.api.transaction import FemTransaction
-from fem.api.config import FemConfig
 from fem.api.acquire_config import FemAcquireConfig
+from fem.api.config import FemConfig
+from fem.api.transaction import FemTransaction
 
 
 class FemClientError(Exception):
@@ -28,7 +25,7 @@ class FemClientError(Exception):
     def __str__(self):
         return str(self.msg)
 
-class FemClient(object):
+class FemClient:
     '''
     classdocs
     '''
@@ -45,7 +42,7 @@ class FemClient(object):
                 self.femSocket.close()
             raise FemClientError("Socket connection timed out")
 
-        except socket.error as e:
+        except OSError as e:
             if self.femSocket:
                 self.femSocket.close()
             raise FemClientError(str(e))
@@ -53,7 +50,7 @@ class FemClient(object):
     def send(self, theCmd=None, theBus=None, theWidth=None, theState=None,
              theAddr=None, thePayload=None, theReadLen=None, theTransaction=None):
 
-        if theTransaction == None:
+        if theTransaction is None:
             #print("Sending cmd: ", theCmd, "bus:", theBus, "width:",
             #      theWidth, "addr:", theAddr, "values: ", thePayload)
 
@@ -62,19 +59,19 @@ class FemClient(object):
         data = theTransaction.encode()
         try:
             self.femSocket.sendall(data)
-        except socket.error as e:
+        except OSError as e:
             if self.femSocket:
                 self.femSocket.close()
-            raise FemClientError("Socket error: {:s}".format(e), FemClientError.ERRNO_SOCK_ERROR)
+            raise FemClientError(f"Socket error: {e:s}", FemClientError.ERRNO_SOCK_ERROR)
 
     def recv(self):
         initRecvLen = FemTransaction.headerSize()
         try:
             data = self.femSocket.recv(initRecvLen)
-        except socket.error as e:
+        except OSError as e:
             if self.femSocket:
                 self.femSocket.close()
-            raise FemClientError("Socket error : {:s}".format(e), FemClientError.ERRNO_SOCK_ERROR)
+            raise FemClientError(f"Socket error : {e:s}", FemClientError.ERRNO_SOCK_ERROR)
 
         if not data:
             raise FemClientError(
@@ -101,7 +98,7 @@ class FemClient(object):
         # from the FEM and raise a matching exception
         if response.state & FemTransaction.STATE_NO_ACKNOWLEDGE:
             (errorNo, errorStr) = response.decodeErrorResponse()
-            raise FemClientError("FEM write transaction failed: {:s}".format(errorStr), errorNo)
+            raise FemClientError(f"FEM write transaction failed: {errorStr:s}", errorNo)
 
         # Determine payload length - len() only works on a sequence object so trap
         # any exception and then default length to 1
@@ -113,9 +110,7 @@ class FemClient(object):
         # Check that the write length acknowledged matches the length of the payload
         if payloadLen != response.payload[0]:
             raise FemClientError(
-                "FEM write transaction length mismatch: request {:d}, got {:d}".format(
-                    payloadLen, response.payload[0]
-                ), FemClientError.ERRNO_READ_MISMATCH
+                f"FEM write transaction length mismatch: request {payloadLen:d}, got {response.payload[0]:d}", FemClientError.ERRNO_READ_MISMATCH
             )
 
     def read(self, theBus, theWidth, theAddr, theReadLen):
@@ -128,14 +123,12 @@ class FemClient(object):
         # from the FEM and raise a matching exception
         if response.state & FemTransaction.STATE_NO_ACKNOWLEDGE:
             (errorNo, errorStr) = response.decodeErrorResponse()
-            raise FemClientError("FEM read transaction failed: {:s}".format(errorStr), errorNo)
+            raise FemClientError(f"FEM read transaction failed: {errorStr:s}", errorNo)
 
         # Check if the read length requested matches that in the response payload
         if theReadLen != response.payload[0]:
             raise FemClientError(
-                "FEM read transaction length mismatch: request {:d}, got {:d}".format(
-                    theReadLen, response.payload[0]
-                ), FemClientError.ERRNO_READ_MISMATCH
+                f"FEM read transaction length mismatch: request {theReadLen:d}, got {response.payload[0]:d}", FemClientError.ERRNO_READ_MISMATCH
             )
 
         # Return the read values excluding the read length
@@ -148,10 +141,8 @@ class FemClient(object):
         address = FemConfig.configAddress
         length  = FemConfig.configSize()
         values = self.read(bus, width, address, length)
-        if sys.version_info > (3,):
-            encoded = bytes(values)
-        else:
-            encoded = ''.join([chr(x) for x in values])
+
+        encoded = bytes(values)
         theConfig = FemConfig(encoded=encoded)
 
         return theConfig
@@ -222,7 +213,6 @@ class FemClient(object):
         if theCmd == FemTransaction.CMD_ACQ_CONFIG:
             acqConfig = FemAcquireConfig(theMode, theBufSize, theBufCount, theNumAcqs, theCoalesce)
             payload = acqConfig.decode()
-            pass
 
         cmd   = FemTransaction.CMD_ACQUIRE
         bus   = FemTransaction.BUS_UNSUPPORTED
@@ -235,7 +225,7 @@ class FemClient(object):
         response = self.recv()
         if response.state & FemTransaction.STATE_NO_ACKNOWLEDGE:
             (errorNo, errorStr) = response.decodeErrorResponse()
-            raise FemClientError("FEM acquire command send failed: {:s}".format(errorStr), errorNo)
+            raise FemClientError(f"FEM acquire command send failed: {errorStr:s}", errorNo)
 
         return response.payload
 

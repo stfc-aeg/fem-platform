@@ -6,7 +6,8 @@ Created on Jun 25, 2013
 
 import struct
 
-class FemSysaceConfig():
+
+class FemSysaceConfig:
     '''
     FEM SystemACE image metadata header
     '''
