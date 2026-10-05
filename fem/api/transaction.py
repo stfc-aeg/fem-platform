@@ -4,26 +4,25 @@ Created on 28 Mar 2011
 @author: tcn
 '''
 
-from __future__ import print_function, division
+import struct
+from typing import ClassVar
 
-import struct  
-import sys
 
-class FemTransaction():
+class FemTransaction:
     '''
     FEM communication protocol transaction
     '''
-    
+
     headerFormat = '!IBBBBII'
-    
+
     TRANSACTION_MAGIC_WORD = 0xdeadbeef
-    
+
     CMD_UNSUPPORTED      = 0
     CMD_ACCESS           = 1
     CMD_INTERNAL         = 2
     CMD_ACQUIRE          = 3
     CMD_PERSONALITY      = 4
-    
+
     BUS_UNSUPPORTED      = 0
     BUS_EEPROM           = 1
     BUS_I2C              = 2
@@ -31,80 +30,82 @@ class FemTransaction():
     BUS_RDMA             = 4
     BUS_SPI              = 5
     BUS_DIRECT           = 6
-    
+
     WIDTH_UNSUPPORTED    = 0
     WIDTH_BYTE           = 1
     WIDTH_WORD           = 2
     WIDTH_LONG           = 3
-    
+
     STATE_UNSUPPORTED    = 0
     STATE_READ           = 1
     STATE_WRITE          = 2
     STATE_ACKNOWLEDGE    = 32
     STATE_NO_ACKNOWLEDGE = 64
-    
+
     CMD_ACQ_UNSUPPORTED   = 0
     CMD_ACQ_CONFIG        = 1
     CMD_ACQ_START         = 2
     CMD_ACQ_STOP          = 3
     CMD_ACQ_STATUS        = 4
     CMD_ACQ_RESET         = 5
-    
+
     ACQ_MODE_UNSUPPORTED  = 0
     ACQ_MODE_NORMAL       = 1
     ACQ_MODE_BURST        = 2
     ACQ_MODE_RX_ONLY      = 3
     ACQ_MODE_TX_ONLY      = 4
     ACQ_MODE_UPLOAD       = 5
- 
-    widthEncoding =  { WIDTH_UNSUPPORTED : (0, 'x'),
-                       WIDTH_BYTE        : (1, 'B'),
-                       WIDTH_WORD        : (2, 'H'),
-                       WIDTH_LONG        : (4, 'I')}
-  
+
+    widthEncoding: ClassVar =  {
+        WIDTH_UNSUPPORTED : (0, 'x'),
+        WIDTH_BYTE        : (1, 'B'),
+        WIDTH_WORD        : (2, 'H'),
+        WIDTH_LONG        : (4, 'I')
+    }
+
     @classmethod
     def headerSize(cls):
         return struct.calcsize(FemTransaction.headerFormat)
-       
+
     def __init__(self, cmd=None, bus=None, width=None, state=None, addr=None, payload=None, readLen=None, encoded=None):
- 
-        # Initialise format string to header format and create empty payload format string       
+
+        # Initialise format string to header format and create empty payload format string
         self.formatStr = FemTransaction.headerFormat
         self.payloadFormatStr = ''
-        
+
         # Initialise remaining payload counter to zero and incomplete flag
         self.payloadRemaining = 0
         self.incomplete = True
-        
+
         # If we are receving a byte encoded transaction, decode accordingly
         if encoded:
 
             self.encoded = encoded
-            
+
             # Decode the headerStruct first
-            headerStructLen = FemTransaction.headerSize()  
-            
-            (self.magicWord, self.command, self.bus, self.width, 
+            headerStructLen = FemTransaction.headerSize()
+
+            (self.magicWord, self.command, self.bus, self.width,
              self.state, self.address, self.payloadLen) =  struct.unpack(self.formatStr, encoded[0:headerStructLen])
-            
+
             #TODO: sanity check decoded headerStruct
 
             # If the transaction has a NACK bit set in the header, then the payload is an error response,
             # which is a byte error code followed by an error message string
             if self.state & FemTransaction.STATE_NO_ACKNOWLEDGE:
                 (payloadMult, payloadFormat) = FemTransaction.widthEncoding[self.width]
-                self.payloadFormatStr = str(self.payloadLen) + payloadFormat 
-                
+                self.payloadFormatStr = str(self.payloadLen) + payloadFormat
+
             else:
-            
+
                 # If this is an encoded access command, i.e. a read or write transaction, then the payload has a fixed
                 # integer length field at the start specifying the transaction length
-                payloadInitLen = 0                    
+                payloadInitLen = 0
                 if self.command == FemTransaction.CMD_ACCESS:
-                
+
                     (payloadMult, self.payloadFormatStr) = FemTransaction.widthEncoding[FemTransaction.WIDTH_LONG]
                     payloadInitLen = 4
-                    
+
                 # Build the remaining payload format specifier
                 if (self.payloadLen -payloadInitLen) > 0:
                     (payloadMult, payloadFormat) = FemTransaction.widthEncoding[self.width]
@@ -124,13 +125,13 @@ class FemTransaction():
                 else:
                     self.payload = ()
                 self.incomplete = False
-            
-         
-        # Otherwise, build the transaction from the other fields, ready for encoding              
+
+
+        # Otherwise, build the transaction from the other fields, ready for encoding
         else:
-            
+
             self.magicWord = FemTransaction.TRANSACTION_MAGIC_WORD
-            
+
             self.command = cmd or FemTransaction.CMD_UNSUPPORTED
             self.bus     = bus or FemTransaction.BUS_UNSUPPORTED
             self.width   = width or FemTransaction.WIDTH_UNSUPPORTED
@@ -142,25 +143,25 @@ class FemTransaction():
 
                 self.payloadLen = 0
                 self.payload = ()
-                
-            # If this is a read transaction then we have a fixed length payload, which is the read length            
+
+            # If this is a read transaction then we have a fixed length payload, which is the read length
             elif (self.command == FemTransaction.CMD_ACCESS) and (self.state == FemTransaction.STATE_READ):
-                
+
                 (self.payloadLen, self.payloadFormatStr) = FemTransaction.widthEncoding[FemTransaction.WIDTH_LONG]
                 self.payload = (readLen,)
 
             # If this is an ack of a read or write transaction then the first word of the payload is the read length, which
             # should be encoded as a long followed by the rest of the payload at the appropriate width
             elif (self.command == FemTransaction.CMD_ACCESS) and (self.state & FemTransaction.STATE_ACKNOWLEDGE):
-                
+
                 (self.payloadLen, self.payloadFormatStr) = FemTransaction.widthEncoding[FemTransaction.WIDTH_LONG]
                 (payloadMult, payloadFormat) = FemTransaction.widthEncoding[self.width]
                 self.payloadLen = self.payloadLen + ((len(payload)-1) * payloadMult)
                 self.payloadFormatStr = self.payloadFormatStr + str(len(payload) - 1) + payloadFormat
                 self.payload = tuple(payload)
-            
-            else:          
-                if payload == None:
+
+            else:
+                if payload is None:
                     #TODO: How can a write have no payload - exception?
                     self.payloadLen = 0
                     self.payload = ()
@@ -171,19 +172,19 @@ class FemTransaction():
                     except TypeError:
                         payload = (payload,)
                         self.payload = tuple(payload)
-                        
-                    self.payload = tuple(payload,)    
+
+                    self.payload = tuple(payload,)
                     self.payloadLen = len(self.payload) * payloadMult
                     self.payloadFormatStr = str(len(self.payload)) + payloadFormat
 
                     #print(self.width, payloadMult, payloadFormat, self.payloadLen, self.payloadFormatStr, self.payload)
-         
-        self.formatStr = self.formatStr + self.payloadFormatStr       
+
+        self.formatStr = self.formatStr + self.payloadFormatStr
 
     def append(self, data=None):
 
         if self.incomplete:
-            
+
             dataLen = len(data)
             if dataLen > self.payloadRemaining:
                 print("Too much data")
@@ -196,36 +197,31 @@ class FemTransaction():
                     headerStructLen = FemTransaction.headerSize()
                     self.payload = struct.unpack(payloadFormat, self.encoded[headerStructLen:])
                     self.incomplete = False
-                
+
         else:
             #TODO raise exception?
             pass
-        
-                
+
+
     def encode(self):
         transaction = (self.magicWord, self.command, self.bus, self.width, self.state, self.address, self.payloadLen) + self.payload
-        #print(self.formatStr)
         try:
             return struct.pack(self.formatStr, *(transaction))
-        except:
-            print(transaction)
+        except struct.error as e:
+            print(e)
 
     def decode(self):
         return struct.unpack(self.formatStr, self.encoded)
-    
+
     def decodeErrorResponse(self):
-        
-        if sys.version_info > (3,):
-            errNo = self.encoded[FemTransaction.headerSize()]
-            errStr = self.encoded[FemTransaction.headerSize()+1:].decode()
-            return (errNo, errStr)
-        
-        (errNo,) = struct.unpack('!b', str(self.encoded[FemTransaction.headerSize()]))
-        errStr = "".join(self.encoded[FemTransaction.headerSize()+1:])
+
+        errNo = self.encoded[FemTransaction.headerSize()]
+        errStr = self.encoded[FemTransaction.headerSize()+1:].decode()
         return (errNo, errStr)
-    
+
+
     def __str__(self):
-        
+
         showStr = 'Magic word     : ' + hex(self.magicWord)  + '\n' + \
                   'Command        : ' + str(self.command)    + '\n' + \
                   'Bus            : ' + str(self.bus)        + '\n' + \
@@ -233,29 +229,29 @@ class FemTransaction():
                   'State          : ' + str(self.state)      + '\n' + \
                   'Address        : ' + str(self.address)    + '\n' + \
                   'Payload length : ' + str(self.payloadLen) + '\n'
-        
+
         if self.payloadLen:
             showStr = showStr + \
                    'Payload        : ' + str([hex(val) for val in self.payload])
-        
+
         return showStr
-                  
+
 
 if __name__ == '__main__':
-    
+
     import binascii
-   
-    testAddr = 0x1000 
+
+    testAddr = 0x1000
     testPayload = 0x1234, 0x5678, 0xfaced00f
-    testTransaction = FemTransaction(cmd=FemTransaction.CMD_ACCESS, bus=FemTransaction.BUS_RAW_REG, 
-                                     width=FemTransaction.WIDTH_LONG, state=FemTransaction.STATE_WRITE,  
+    testTransaction = FemTransaction(cmd=FemTransaction.CMD_ACCESS, bus=FemTransaction.BUS_RAW_REG,
+                                     width=FemTransaction.WIDTH_LONG, state=FemTransaction.STATE_WRITE,
                                      addr=testAddr, payload=testPayload)
     testPacked = testTransaction.encode()
     print("Packed transaction : ", binascii.hexlify(testPacked))
-    
+
     reverseTransaction = FemTransaction(encoded=testPacked)
     testUnpacked = reverseTransaction.decode()
     print('Unpacked reverse transaction:', [hex(unpackedField) for unpackedField in testUnpacked])
     print('Unpacked payload:', [hex(payloadField) for payloadField in reverseTransaction.payload])
-    
+
     assert testPayload == reverseTransaction.payload
